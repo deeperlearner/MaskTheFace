@@ -568,10 +568,15 @@ def rect_to_bb(rect):
     return (x1, x2, y2, x1)
 
 
-def mask_image(image_path, args):
-    # Read the image
-    image = cv2.imread(image_path)
-    original_image = image.copy()
+def mask_image(image_path, args, array_img=None):
+    if array_img is None:
+        # Read the image
+        image = cv2.imread(image_path)
+        original_image = image.copy()
+    else:
+        image = array_img
+        original_image = image.copy()
+
     # gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     gray = image
     face_locations = args.detector(gray, 1)

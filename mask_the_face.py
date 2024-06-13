@@ -2,6 +2,10 @@
 # Created: 27 April,2020, 10:22 PM
 # Email: aqeel.anwar@gatech.edu
 
+import os
+import sys
+import numpy as np
+import random
 import argparse
 import dlib
 from utils.aux_functions import *
@@ -75,7 +79,7 @@ parser.add_argument(
 parser.set_defaults(feature=False)
 
 args = parser.parse_args()
-args.write_path = args.path + "_masked"
+args.write_path = args.path#+ "_masked"
 
 # Set up dlib face detector and predictor
 args.detector = dlib.get_frontal_face_detector()
@@ -122,32 +126,33 @@ if is_directory:
     for f in tqdm(files):
         image_path = path + "/" + f
 
-        write_path = path + "_masked"
+        write_path = path# + "_masked"
         if not os.path.isdir(write_path):
             os.makedirs(write_path)
 
-        if is_image(image_path):
-            # Proceed if file is image
-            if args.verbose:
-                str_p = "Processing: " + image_path
-                tqdm.write(str_p)
+        if True: #random.random() < 0.5:
+            if is_image(image_path):
+                # Proceed if file is image
+                if args.verbose:
+                    str_p = "Processing: " + image_path
+                    tqdm.write(str_p)
 
-            split_path = f.rsplit(".")
-            masked_image, mask, mask_binary_array, original_image = mask_image(
-                image_path, args
-            )
-            for i in range(len(mask)):
-                w_path = (
-                    write_path
-                    + "/"
-                    + split_path[0]
-                    + "_"
-                    + mask[i]
-                    + "."
-                    + split_path[1]
+                split_path = f.rsplit(".")
+                masked_image, mask, mask_binary_array, original_image = mask_image(
+                    image_path, args
                 )
-                img = masked_image[i]
-                cv2.imwrite(w_path, img)
+                for i in range(len(mask)):
+                    w_path = (
+                        write_path
+                        + "/"
+                        + split_path[0]
+                        # + "_"
+                        # + mask[i]
+                        + "."
+                        + split_path[1]
+                    )
+                    img = masked_image[i]
+                    cv2.imwrite(w_path, img)
 
     print_orderly("Masking image directories", 60)
 
@@ -204,6 +209,10 @@ elif is_file:
         masked_image, mask, mask_binary_array, original_image = mask_image(
             image_path, args
         )
+        # img = mask_binary_array[0]
+        # print(img.shape)
+        # np.set_printoptions(threshold=sys.maxsize)
+        # print(img)
         for i in range(len(mask)):
             w_path = write_path + "_" + mask[i] + "." + args.path.rsplit(".")[1]
             img = masked_image[i]
