@@ -116,18 +116,24 @@ for i, entry in enumerate(mask_code):
 input_index_recordio_path = '/train/data/ms1m-retinaface-t1/train.idx'
 input_recordio_path = '/train/data/ms1m-retinaface-t1/train.rec'
 
-output_index_recordio_path = '/space/data/ms1m-retinaface-t1_v1/train.idx'
-output_recordio_path = '/space/data/ms1m-retinaface-t1_v1/train.rec'
-mask_index_recordio_path = '/space/data/ms1m-retinaface-t1_v1/mask.idx'
-mask_recordio_path = '/space/data/ms1m-retinaface-t1_v1/mask.rec'
+data_dir = "/space/data/ms1m-retinaface-t1_v2"
+if not os.path.exists(data_dir):
+    os.makedirs(data_dir)
+face_index_recordio_path = os.path.join(data_dir, "face.idx")
+face_recordio_path = os.path.join(data_dir, "face.rec")
+masked_face_index_recordio_path = os.path.join(data_dir, "masked_face.idx")
+masked_face_recordio_path = os.path.join(data_dir, "masked_face.rec")
+binary_mask_index_recordio_path = os.path.join(data_dir, "binary_mask.idx")
+binary_mask_recordio_path = os.path.join(data_dir, "binary_mask.rec")
 
-total_records = 5179510
+total_records = 200000#5179510
 
 # Read the input RecordIO file
 record = mx.recordio.MXIndexedRecordIO(input_index_recordio_path, input_recordio_path, 'r')
 # Open the output RecordIO file
-record_out = mx.recordio.MXIndexedRecordIO(output_index_recordio_path, output_recordio_path, 'w')
-record_mask = mx.recordio.MXIndexedRecordIO(mask_index_recordio_path, mask_recordio_path, 'w')
+record_face = mx.recordio.MXIndexedRecordIO(face_index_recordio_path, face_recordio_path, 'w')
+record_masked_face = mx.recordio.MXIndexedRecordIO(masked_face_index_recordio_path, masked_face_recordio_path, 'w')
+record_binary_mask = mx.recordio.MXIndexedRecordIO(binary_mask_index_recordio_path, binary_mask_recordio_path, 'w')
 
 # Read and process each record
 for _ in tqdm(range(total_records), desc="Writing records"):
@@ -148,7 +154,7 @@ for _ in tqdm(range(total_records), desc="Writing records"):
         break
 
     # Modify the image (e.g., resize, rotate, etc.)
-    if random.random() < 0.5:
+    if True:
         image_path = ""
         masked_image, mask, mask_binary_array, original_image = mask_image(
             image_path, args, array_img=image
@@ -157,11 +163,17 @@ for _ in tqdm(range(total_records), desc="Writing records"):
             masked_image = Image.fromarray(np.uint8(masked_image[0]))
             mask_binary_array = mask_binary_array[0]
         else:
-            masked_image = Image.fromarray(np.uint8(image))
-            mask_binary_array = np.zeros((112, 112))
-    else:
-        masked_image = Image.fromarray(np.uint8(image))
-        mask_binary_array = np.zeros((112, 112))
+            # Mask the face failed, continue to the next one
+            continue
+
+    buffer_face = io.BytesIO()
+    face_image = Image.fromarray(image)
+    face_image.save(buffer_face, format='JPEG')
+    image_data = buffer_face.getvalue()
+
+    # Write the modified image back to the RecordIO file
+    packed_record = mx.recordio.pack(header, image_data)
+    record_face.write_idx(idx, packed_record)
 
     # Convert the modified image back to bytes
     buffer = io.BytesIO()
@@ -170,7 +182,7 @@ for _ in tqdm(range(total_records), desc="Writing records"):
 
     # Write the modified image back to the RecordIO file
     packed_record = mx.recordio.pack(header, modified_image_data)
-    record_out.write_idx(idx, packed_record)
+    record_masked_face.write_idx(idx, packed_record)
 
     # Convert the additional array to a grayscale image
     grayscale_image = Image.fromarray(mask_binary_array, mode='L')
@@ -180,38 +192,53 @@ for _ in tqdm(range(total_records), desc="Writing records"):
 
     # Write the modified image back to the RecordIO file
     packed_record = mx.recordio.pack(header, grayscale_image_data)
-    record_mask.write_idx(idx, packed_record)
+    record_binary_mask.write_idx(idx, packed_record)
 
 record.close()
-record_out.close()
-record_mask.close()
+record_face.close()
+record_masked_face.close()
+record_binary_mask.close()
 
 
 # Read the output RecordIO file
-record_out = mx.recordio.MXIndexedRecordIO(output_index_recordio_path, output_recordio_path, 'r')
-record_mask = mx.recordio.MXIndexedRecordIO(mask_index_recordio_path, mask_recordio_path, 'r')
+record_face = mx.recordio.MXIndexedRecordIO(face_index_recordio_path, face_recordio_path, 'r')
+record_masked_face = mx.recordio.MXIndexedRecordIO(masked_face_index_recordio_path, masked_face_recordio_path, 'r')
+record_binary_mask = mx.recordio.MXIndexedRecordIO(binary_mask_index_recordio_path, binary_mask_recordio_path, 'r')
 
 # Read and process each record
 for _ in tqdm(range(total_records), desc="Reading records"):
     idx = _ + 1
     if idx < 5179500:
         continue
-    item = record_out.read_idx(idx)
+    item = record_face.read_idx(idx)
     if item is None:
         break  # End of file
     header, image_data = mx.recordio.unpack(item)
-    print(header)
 
     # Convert image data to a PIL image
     try:
         image = mx.image.imdecode(image_data).asnumpy()
         image = Image.fromarray(image)
-        image.save("image.jpg")
+        image.save("face.jpg")
     except Exception as e:
         print(f"Error opening image: {e}")
         continue
 
-    item = record_mask.read_idx(idx)
+    item = record_masked_face.read_idx(idx)
+    if item is None:
+        break  # End of file
+    header, image_data = mx.recordio.unpack(item)
+
+    # Convert image data to a PIL image
+    try:
+        image = mx.image.imdecode(image_data).asnumpy()
+        image = Image.fromarray(image)
+        image.save("masked_face.jpg")
+    except Exception as e:
+        print(f"Error opening image: {e}")
+        continue
+
+    item = record_binary_mask.read_idx(idx)
     if item is None:
         break  # End of file
     header, mask_data = mx.recordio.unpack(item)
@@ -227,5 +254,6 @@ for _ in tqdm(range(total_records), desc="Reading records"):
 
     break
 
-record_out.close()
-record_mask.close()
+record_face.close()
+record_masked_face.close()
+record_binary_mask.close()
