@@ -62,8 +62,8 @@ parser.add_argument(
 parser.add_argument(
     "--code",
     type=str,
-    # default="cloth-masks/textures/check/check_4.jpg, cloth-#e54294, cloth-#ff0000, cloth, cloth-masks/textures/others/heart_1.png, cloth-masks/textures/fruits/pineapple.png, N95, surgical_blue, surgical_green",
-    default="",
+    default="cloth-#ffc0cb, cloth-#000000, cloth-#ffffff, cloth, cloth-masks/textures/others/heart_1.png, surgical_blue, surgical_green",
+    # default="",
     help="Generate specific formats",
 )
 
@@ -113,13 +113,13 @@ for i, entry in enumerate(mask_code):
     args.mask_dict_of_dict[i] = mask_dict
 
 # Path to the RecordIO files
-input_index_recordio_path = '/train/data/ms1m-retinaface-t1/train.idx'
-input_recordio_path = '/train/data/ms1m-retinaface-t1/train.rec'
+input_index_recordio_path = '/media/back/internal/data/ms1m-retinaface-t1/train.idx'
+input_recordio_path = '/media/back/internal/data/ms1m-retinaface-t1/train.rec'
 
-output_index_recordio_path = '/space/data/ms1m-retinaface-t1_v1/train.idx'
-output_recordio_path = '/space/data/ms1m-retinaface-t1_v1/train.rec'
-mask_index_recordio_path = '/space/data/ms1m-retinaface-t1_v1/mask.idx'
-mask_recordio_path = '/space/data/ms1m-retinaface-t1_v1/mask.rec'
+output_index_recordio_path = '/space/data/ms1m-retinaface-t1_v1_random/train.idx'
+output_recordio_path = '/space/data/ms1m-retinaface-t1_v1_random/train.rec'
+mask_index_recordio_path = '/space/data/ms1m-retinaface-t1_v1_random/mask.idx'
+mask_recordio_path = '/space/data/ms1m-retinaface-t1_v1_random/mask.rec'
 
 total_records = 5179510
 
@@ -134,6 +134,8 @@ for _ in tqdm(range(total_records), desc="Writing records"):
     idx = _ + 1
     # if idx < 5179500:
     #     continue
+    if idx > 100000:
+        break
     item = record.read_idx(idx)
     if item is None:
         break  # End of file
@@ -194,8 +196,10 @@ record_mask = mx.recordio.MXIndexedRecordIO(mask_index_recordio_path, mask_recor
 # Read and process each record
 for _ in tqdm(range(total_records), desc="Reading records"):
     idx = _ + 1
-    if idx < 5179500:
-        continue
+    # if idx < 5179500:
+    #     continue
+    if idx > 50:
+        break
     item = record_out.read_idx(idx)
     if item is None:
         break  # End of file
@@ -206,7 +210,7 @@ for _ in tqdm(range(total_records), desc="Reading records"):
     try:
         image = mx.image.imdecode(image_data).asnumpy()
         image = Image.fromarray(image)
-        image.save("image.jpg")
+        image.save(f"tests/image_{idx}.jpg")
     except Exception as e:
         print(f"Error opening image: {e}")
         continue
@@ -221,11 +225,9 @@ for _ in tqdm(range(total_records), desc="Reading records"):
         grayscale_image = mx.image.imdecode(mask_data, flag=0).asnumpy()
         grayscale_image = grayscale_image.reshape((112, 112))
         grayscale_image = Image.fromarray(grayscale_image, mode='L')
-        grayscale_image.save("gray.jpg")
+        grayscale_image.save(f"tests/gray_{idx}.jpg")
     except Exception as e:
         print(f"Error opening grayscale image: {e}")
-
-    break
 
 record_out.close()
 record_mask.close()
