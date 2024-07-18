@@ -62,8 +62,8 @@ parser.add_argument(
 parser.add_argument(
     "--code",
     type=str,
-    # default="cloth-masks/textures/check/check_4.jpg, cloth-#e54294, cloth-#ff0000, cloth, cloth-masks/textures/others/heart_1.png, cloth-masks/textures/fruits/pineapple.png, N95, surgical_blue, surgical_green",
-    default="",
+    default="cloth-#ffc0cb, cloth-#000000, cloth-#ffffff, cloth, cloth-masks/textures/others/heart_1.png, surgical_blue, surgical_green",
+    # default="",
     help="Generate specific formats",
 )
 
@@ -113,12 +113,13 @@ for i, entry in enumerate(mask_code):
     args.mask_dict_of_dict[i] = mask_dict
 
 # Path to the RecordIO files
-input_index_recordio_path = '/train/data/ms1m-retinaface-t1/train.idx'
-input_recordio_path = '/train/data/ms1m-retinaface-t1/train.rec'
+input_index_recordio_path = '/media/back/internal/data/ms1m-retinaface-t1/train.idx'
+input_recordio_path = '/media/back/internal/data/ms1m-retinaface-t1/train.rec'
 
 data_dir = "/space/data/ms1m-retinaface-t1_v2"
 if not os.path.exists(data_dir):
     os.makedirs(data_dir)
+
 face_index_recordio_path = os.path.join(data_dir, "face.idx")
 face_recordio_path = os.path.join(data_dir, "face.rec")
 masked_face_index_recordio_path = os.path.join(data_dir, "masked_face.idx")
@@ -134,6 +135,7 @@ record = mx.recordio.MXIndexedRecordIO(input_index_recordio_path, input_recordio
 record_face = mx.recordio.MXIndexedRecordIO(face_index_recordio_path, face_recordio_path, 'w')
 record_masked_face = mx.recordio.MXIndexedRecordIO(masked_face_index_recordio_path, masked_face_recordio_path, 'w')
 record_binary_mask = mx.recordio.MXIndexedRecordIO(binary_mask_index_recordio_path, binary_mask_recordio_path, 'w')
+
 
 # Read and process each record
 for _ in tqdm(range(total_records), desc="Writing records"):
@@ -219,7 +221,7 @@ for _ in tqdm(range(total_records), desc="Reading records"):
     try:
         image = mx.image.imdecode(image_data).asnumpy()
         image = Image.fromarray(image)
-        image.save("face.jpg")
+        image.save(f"face_{idx}.jpg")
     except Exception as e:
         print(f"Error opening image: {e}")
         continue
@@ -233,7 +235,7 @@ for _ in tqdm(range(total_records), desc="Reading records"):
     try:
         image = mx.image.imdecode(image_data).asnumpy()
         image = Image.fromarray(image)
-        image.save("masked_face.jpg")
+        image.save(f"masked_face_{idx}.jpg")
     except Exception as e:
         print(f"Error opening image: {e}")
         continue
@@ -248,11 +250,9 @@ for _ in tqdm(range(total_records), desc="Reading records"):
         grayscale_image = mx.image.imdecode(mask_data, flag=0).asnumpy()
         grayscale_image = grayscale_image.reshape((112, 112))
         grayscale_image = Image.fromarray(grayscale_image, mode='L')
-        grayscale_image.save("gray.jpg")
+        grayscale_image.save(f"tests/gray_{idx}.jpg")
     except Exception as e:
         print(f"Error opening grayscale image: {e}")
-
-    break
 
 record_face.close()
 record_masked_face.close()
